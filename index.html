@@ -1,0 +1,123 @@
+<!DOCTYPE html>
+<html>
+    <head>
+        <style>
+            @import url('sp://import/css/eve.css');
+            @import url('sp://import/css/player.css');
+            @import url('sp://import/css/ui.css');
+            @import url('sp://tutorial/css/main.css');
+            @import url('sp://tutorial/css/github.css');
+            h1, ul {margin:0 0 30px;}
+            a:hover {color:#83be20;}
+        </style>
+        <script src="sp://musju/js/jquery.min.js"></script>
+        <script src="sp://musju/js/rainbow-custom.min.js"></script>
+        <script>
+            $(document).ready(function() {
+                sp = getSpotifyApi(1);
+                var models = sp.require('sp://import/scripts/api/models');
+                var gtrack = sp.require("sp://import/scripts/googletracker");
+                var tracker = new gtrack.GoogleTracker('UA–xxxxxxx–1');
+
+                tabs();
+                models.application.observe(models.EVENT.ARGUMENTSCHANGED, tabs);
+
+                function tabs() {
+                    var args = models.application.arguments;
+                    console.log(args[0]);
+                    $('.section').hide();
+                    $('#'+args[0]).show();
+                }
+            });
+        </script>
+    </head>
+    <body>
+        <div id="wrapper">
+
+<h4> MusJu </h4>
+        <div id="index" class="section">
+
+
+            <h4>Playlists</h4>
+            <ul>
+                <li><a href="sp://musju/tutorials/add_song_to_playlist.html">Add a song to a playlist</a></li>
+                <li><a href="sp://musju/tutorials/get_songs_from_playlist.html">Get songs from a playlist URL</a></li>
+                <li><a href="sp://musju/tutorials/subscribe.html">Subscribe to a playlist</a></li>
+                <li><a href="sp://musju/tutorials/playlist_mosaic.html">Showing a playlist mosiac image</a></li>
+            </ul>
+
+            <h4>Interacting with Facebook</h4>
+            <ul>
+                <li><a href="sp://musju/tutorials/Facebook_auth.html">Authenticate a user with Facebook</a></li>
+                <li><a href="sp://musju/tutorials/Facebook_get_listening_history.html">Get a user's listening history from Facebook</a></li>
+            </ul>
+
+            
+
+        </div><!-- /index -->
+
+        <div id="tabs" class="section">
+            <ul class="breadcrumb">
+                <li><a href="spotify:app:musju:index">&laquo; Back to main page</a></li>
+            </ul>
+
+            <h1>Handling arguments and creating navigational tabs</h1>
+            <p class="description">In the manifest.json file, you can update the <code>DefaultTabs</code> property with arguments that corespond to nagivational tab names. In the <code>Application</code> class, when tabs are clicked, the arguments property is updated. In this example, we are simply showing and hiding a &lt;div /&gt; element each time the arguments are updated.</p>
+
+            <h3>The manifest.json snippet</h3>
+            <div id="the-json">
+<pre><code data-language="javascript">{
+    ...
+    "DefaultTabs": [
+        {
+            "arguments": "index",
+            "title": {
+                "en": "Home"
+            }
+        },
+        {
+            "arguments": "tabs",
+            "title": {
+                "en": "How to use tabs"
+            }
+        }
+    ],
+    ...
+}</code></pre>
+            </div>
+
+            <h3>The Javascript</h3>
+            <div id="the-js">
+<pre><code data-language="javascript">sp = getSpotifyApi(1);   
+var models = sp.require('sp://import/scripts/api/models');
+
+tabs(); // See function definition below
+
+/* When a user clicks a tab, the "arguments" property on the 
+ * Application object changes, and the tabs() function fires */               
+models.application.observe(models.EVENT.ARGUMENTSCHANGED, tabs);  
+
+function tabs() {
+    var args = models.application.arguments;
+    $('.section').hide(); // Hide all sections
+    $('#'+args[0]).show(); // Show the current section
+}</code></pre>
+            </div>
+
+            <h3>The HTML</h3>
+            <div id="the-html">
+<pre><code data-language="html">&lt;div id="index"&gt;
+<!-- This content will show up in the "Home" tab -->
+&lt;/div&gt;
+
+&lt;div id="tabs"&gt;
+<!-- This content will show up in the "How to use tabs" tab -->
+&lt;/div&gt;</code></pre>
+            </div>
+
+        </div><!-- /tabs -->
+
+
+        </div><!-- /wrapper -->
+    </body>
+</html>

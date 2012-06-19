@@ -1,104 +1,35 @@
 // using "pageshow" jquery mobile event for doc ready since pageCreate() has a bug w/ select menus - https://github.com/jquery/jquery-mobile/issues/1055
-$(document).bind("pageshow", function(){
-	
-	var canvas = $("#score")[0],
-		canvasOffset = $("#score").offset(),
-		canvasSlider = $('#canvas-slider'),
-		selectNoteName = $('#select-note-name'),
-		selectNoteOctave = $('#select-note-octave'),
-		selectNoteAccidental = $('#select-note-accidental'),
-		selectNoteDuration = $('#select-note-duration');
-		
+
+
+function initWriter() {
+
+	var canvas = $('#scoreCanvas')[0];
+    var canvasOffset = $('#scoreCanvas').offset();
 		
 	var renderer = new Vex.Flow.Renderer(canvas, Vex.Flow.Renderer.Backends.CANVAS);
 	
 	var ctx = renderer.getContext();
 	
-	var staff, 
+	var stave, 
 		formatter, 
 		voice, 
 		noteOffsetLeft, 
 		tickIndex = 0, 
 		noteIndex = 0, 
 		numBeats = 4, 
-		beatValue = 4, 
+		beatValue = 4,
+        key = "C",
 		cursorHeight = 150;
 	
 	// create notes array for storing music score in vexflow format
 	var notes = new Array();
-	
-	processStave();
-	highlightNote();
-	drawStave();
-	
-	
-	// set default values for select menus
-	var selectNoteName = $("select#select-note-name");
-	selectNoteName[0].selectedIndex = 2;
-	selectNoteName.selectmenu("refresh");
-	
-	var selectNoteAccidental = $("select#select-note-accidental");
-	selectNoteAccidental[0].selectedIndex = 0;
-	selectNoteAccidental.selectmenu("refresh");
-	
-	var selectNoteOctave = $("select#select-note-octave");
-	selectNoteOctave[0].selectedIndex = 1;
-	selectNoteOctave.selectmenu("refresh");
-	
-	var selectNoteDuration = $("select#select-note-duration");
-	selectNoteDuration[0].selectedIndex = 2;
-	selectNoteDuration.selectmenu("refresh");
-
-	
-	// add "play audio" button if browser supports new audio apis
-	try {
-		var audiolet = new Audiolet();
-		$('#audioControls').show();
-	}
-	catch(err) {
-		//console.log("your browser does not support the new audio apis");
-	}
+	addNote(60,'q');
 	
 	// click events
-	
 	canvas.addEventListener("click", scoreOnClick, false);
 
 	// updates canvas offset position on resize event for canvas mouse clicks 
 	$(window).bind( "throttledresize", setCanvasOffset );
-
-	// canvas slider used to translate() the origin of the canvas for horizontal scrolling
-	canvasSlider.change($.throttle( 100, function() {
-
-		ctx.clear();
-		
-		// reset transformation
-		ctx.setTransform(1,0,0,1,0,0);
-		ctx.translate(-1*canvasSlider.val(),0);
-		
-		highlightNote();
-		drawStave();
-
-		if (notes.length > 0) {
-			drawNotes();
-		}
-		
-	}));
-	
-	
-	$("#addNote").click(function () {
-		var vexNote = parseNoteInput();
-		addNote(vexNote);
-	});
-	
-	$('#playAudio').click(function() {
-		playAudio();
-	});
-	
-	$('#deleteNote').click(function() {
-		deleteNote();
-	});
-	
-	
 	
 	// functions
 	
@@ -154,14 +85,15 @@ $(document).bind("pageshow", function(){
 				continue;
 			}
 		
-			if (Math.abs( noteOffsetLeft + formatter.tContexts.map[note].x + formatter.tContexts.map[tickIndex].width - canvasSlider.val() - xcord) < dif) {
-				dif = Math.abs( noteOffsetLeft + formatter.tContexts.map[note].x + formatter.tContexts.map[tickIndex].width - canvasSlider.val() - xcord);
+			if (Math.abs( noteOffsetLeft + formatter.tContexts.map[note].x + formatter.tContexts.map[tickIndex].width  - xcord) < dif) {
+				dif = Math.abs( noteOffsetLeft + formatter.tContexts.map[note].x + formatter.tContexts.map[tickIndex].width - xcord);
 				tickIndex = note;
 			}
 		}
 
+/*
 		// if user clicks for a new note (anything to the right of the last existing note)
-		if ((noteOffsetLeft + formatter.tContexts.map[tickIndex].x + formatter.tContexts.map[tickIndex].width + 30 - canvasSlider.val() - xcord) < 0) {
+		if ((noteOffsetLeft + formatter.tContexts.map[tickIndex].x + formatter.tContexts.map[tickIndex].width + 30 - xcord) < 0) {
 			
 			tickIndex = 0;
 			
@@ -171,6 +103,7 @@ $(document).bind("pageshow", function(){
 			
 			noteIndex = notes.length;
 		}
+*/
 	
 		// set noteIndex for 'notes' array based on tickIndex 'map' object
 		var i = 0;
@@ -185,52 +118,52 @@ $(document).bind("pageshow", function(){
 			i++;
 		}
 	}
+    
+    function updateIndex(noteInd) {
+    
+        noteIndex = noteInd;
+        tickIndex = 0;
+			
+        for (var i=0; i <= noteIndex-1; i++) {
+            tickIndex += notes[i].ticks;
+        }
+    
+    }
 	
-	function parseNoteInput() {
 	
-		var note_acc = (selectNoteAccidental.val() != "none") ? selectNoteAccidental.val() : "";
-		
-		var noteObj = { keys: [selectNoteName.val().toLowerCase() + note_acc + "/" + selectNoteOctave.val()], duration: selectNoteDuration.val(), accidental: selectNoteAccidental.val() };
-		
-		return noteObj;
-	}
-	
-	function addNote(staveNoteObj) {
+	function addNote(pitch, dur) {
+    
+        var key = "" + Vex.Flow.integerToNote(pitch%12) + "/" + Math.floor(pitch/12);
+        var accidental = Vex.Flow.keyProperties.note_values[Vex.Flow.integerToNote(pitch%12)].accidental;
+        if (!accidental)
+            accidental = "none";
+        
+        var staveNoteObj = {keys: [key], duration: dur, accidental: accidental, stem_direction : pitch > 59 ? Vex.Flow.StaveNote.STEM_DOWN : Vex.Flow.StaveNote.STEM_UP};
 		
 		// update to work for editing notes but not adding notes
+        
+        var newNote;
+        if (staveNoteObj.accidental == "none") {
+            newNote = new Vex.Flow.StaveNote(staveNoteObj);
+        } else {
+            newNote = new Vex.Flow.StaveNote(staveNoteObj).addAccidental(0, new Vex.Flow.Accidental(accidental));
+        }
+        newNote.pitch = pitch;
 		
 			// edit existing note
 			if (noteIndex <= notes.length-1) {
-				
-				if (staveNoteObj.accidental == "none" ) {
-					notes.splice(noteIndex, 1, new Vex.Flow.StaveNote(staveNoteObj));
-				}
-				else {
-					notes.splice(noteIndex, 1,new Vex.Flow.StaveNote(staveNoteObj).addAccidental(0, new Vex.Flow.Accidental(selectNoteAccidental.val())) );
-				}
-				
+                notes.splice(noteIndex, 1, newNote);
 			}
 			// add new note
 			else {
-				if (stave.width < 1700) {
-					// add new note to end of notes array
-					if (staveNoteObj.accidental == "none" ) {
-						notes.push(new Vex.Flow.StaveNote(staveNoteObj));
-					}
-					else {
-						notes.push( new Vex.Flow.StaveNote(staveNoteObj).addAccidental(0, new Vex.Flow.Accidental(selectNoteAccidental.val())) );
-					}
-					
-					noteIndex = notes.length;
-				}
-				else {
-					alert("Cannot add anymore notes! You have reached the max number of notes for this demo.");
-				}
-				
+                // add new note to end of notes array
+                notes.push(newNote);
+                noteIndex = notes.length;
 			}
 				
 			ctx.clear();
 			processStave();
+            processMeasures();
 			processNotes();
 			drawStave();
 			drawNotes();
@@ -247,13 +180,6 @@ $(document).bind("pageshow", function(){
 			
 			highlightNote();
 			
-			
-			// update max value for slider
-			if (stave.width > 550) {
-				canvasSlider.attr('max',stave.width);
-				canvasSlider.slider('refresh');
-			}
-		
 	}
 	
 	
@@ -266,30 +192,26 @@ $(document).bind("pageshow", function(){
 		drawStave();
 		if (notes.length > 0) {
 			processNotes();
+            processMeasures();
 			drawNotes();
 		}
-		
+ 
 		highlightNote();
 		
-		// update max value for slider
-		if (stave.width > 550) {
-			canvasSlider.attr('max',stave.width);
-			canvasSlider.slider('refresh');
-		}
 	}
 	
 	function processStave() {
 
-		var staveSize;
+		var staveSize = 800;
 		
-		// set stave width
+		/*// set stave width
 		if (notes.length < 6) {
 			staveSize = 550;
 		}
 		else {
 			// about 85 pixels per note
 			staveSize = (notes.length+1) * 85;
-		}
+		}*/
 		
 		stave = new Vex.Flow.Stave(10, 20, staveSize);
 
@@ -299,7 +221,7 @@ $(document).bind("pageshow", function(){
 		stave.addTimeSignature(numBeats + "/" + beatValue);
 		
 		// add key
-		stave.addKeySignature("C");
+		stave.addKeySignature(key);
 		
 		// calc offset for first note - accounts for pixels used by treble clef & time signature & key signature
 		noteOffsetLeft = stave.start_x + stave.glyph_start_x;
@@ -323,9 +245,10 @@ $(document).bind("pageshow", function(){
 		
 		// Add notes to voice
 		voice.addTickables(notes);
-				
+    
 		// Format and justify the notes
-		var voiceSize = notes.length * 85 - 50;
+		//var voiceSize = notes.length * 85 - 50;
+        var voiceSize = 800;
 		
 		formatter = new Vex.Flow.Formatter().joinVoices([voice]).format([voice], voiceSize);
 	}
@@ -341,10 +264,15 @@ $(document).bind("pageshow", function(){
 			// when adding a new note vs. editing an existing note draw the cursor for next new note 
 			//(the tickIndex will be undefined in map object for a new note)
 			if (formatter.tContexts.map[tickIndex] == undefined) {
-				
-				var tempIndex = tickIndex - notes[notes.length-1].ticks;
+                if (noteIndex > 0) {
+                    updateIndex(noteIndex-1);
+                    highlightNote();
+                }
+				/*
+                var tempIndex = tickIndex - notes[notes.length-1].ticks;
 				
 				ctx.fillRect(noteOffsetLeft + formatter.tContexts.map[tempIndex].x + 60, 10, 16.5, cursorHeight);
+                */
 			}
 			else {
 				ctx.fillRect(noteOffsetLeft + formatter.tContexts.map[tickIndex].x, 10, formatter.tContexts.map[tickIndex].width 
@@ -374,7 +302,9 @@ $(document).bind("pageshow", function(){
 		
 			if (sumTicks == totalTicksPerMeasure) {
 				
-				notes.splice(i,0,new Vex.Flow.BarNote());
+                var bar = new Vex.Flow.BarNote();
+                bar.isBar = true;
+				notes.splice(i,0,bar);
 				noteIndex++;
 				sumTicks = 0;
 			}
@@ -389,38 +319,135 @@ $(document).bind("pageshow", function(){
 		stave.setContext(ctx).draw();
 	}
 	
-	
 	function drawNotes() {
 		voice.draw(ctx, stave);
 	}
 	 
 	function setCanvasOffset() {
-		canvasOffset = $("#score").offset();
+		canvasOffset = $('#scoreCanvas').offset();
 	}
+    
+    document.onkeydown = (function(key) {
+        var key = window.event || key;
+        //console.log(key.keyIdentifier)
+        switch(key.keyIdentifier) {
+        case "Left":
+            scrollLeft();
+        break;
+        case "Up":
+            changePitch(1);
+        break;
+        case "Right":
+            scrollRight();
+        break;
+        case "Down":
+            changePitch(-1);
+        break;
+        case "Enter":
+            validateNote();
+        break;
+        case "U+0008": // Backspace
+            if (notes.length > 1)
+                deleteNote();
+        break;
+        case "U+0031":
+            changeDuration('32');
+        break;
+        case "U+0032":
+            changeDuration('16');
+        break;
+        case "U+0033":
+            changeDuration('8');
+        break;
+        case "U+0034":
+            changeDuration('q');
+        break;
+        case "U+0035":
+            changeDuration('h');
+        break;
+        case "U+0036":
+            changeDuration('w');
+        break;
+        }
+    });
 
-	function playAudio() {
-	
-		if (notes.length > 0) {
-			var audio = new Array();
+function scrollLeft() {
+    if (noteIndex != 0) {
+        if (notes[noteIndex].isTemp) {
+            deleteNote();
+        } else {
+            updateIndex(noteIndex - 1);
+            if (notes[noteIndex].isBar)
+                scrollLeft();
+        }
+        ctx.clear();
+        processStave();
+        processMeasures();
+        processNotes();
+        drawStave();
+        drawNotes();
+        highlightNote();
+    }
+}
 
-			for (var i = 0; i < notes.length; i++) {
-				
-				// skip bar notes in note array				
-				if (notes[i].duration != "b") {
+function scrollRight() {
+    if (notes.length == 0) {
+            // Create new temp note
+            addNote(60,"8");
+            updateIndex(0);
+            notes[noteIndex].isTemp = true;
+    }
+    else if (!(notes[noteIndex].isTemp)) {
+        if (noteIndex == notes.length-1) {
+            // Create temp note
+            updateIndex(noteIndex + 1);
+            addNote(notes[noteIndex-1].pitch,notes[noteIndex-1].duration);
+            notes[noteIndex].isTemp = true;
+        } else {
+            // Move forward
+            updateIndex(noteIndex + 1);
+        }
+        if (notes[noteIndex].isBar) {
+            if (noteIndex < notes.length)
+                scrollRight();
+            else
+                scrollLeft();
+        }
+        ctx.clear();
+        processStave();
+        processMeasures();
+        processNotes();
+        drawStave();
+        drawNotes();
+        highlightNote();
+    }
+}
 
-					var noteName = notes[i].keys[0].substring(0, 1).toUpperCase() + notes[i].keys[0].substring(1, notes[i].keys[0].indexOf("/")) +  notes[i].keys[0].substring(notes[i].keys[0].indexOf("/")+1);
-					var noteDuration = notes[i].ticks/4096;
-					
-					audio.push({name: Note.fromLatin(noteName), duration: noteDuration});
-				}
-			}
-			
-			var app = new SchedulerPlayAudio(audio);
-			ctx.clear();
-			drawStave();
-			drawNotes();
-			
-		}
-	}
-	
-});
+function changePitch(steps) {
+    var newPitch = notes[noteIndex].pitch + steps;
+    var newDur = notes[noteIndex].duration;
+    var isTemp = notes[noteIndex].isTemp;
+    addNote(newPitch,newDur);
+    notes[noteIndex].isTemp = isTemp;
+}
+
+function changeDuration(newDur) {
+    var newPitch = notes[noteIndex].pitch;
+    var isTemp = notes[noteIndex].pitch;
+    addNote(newPitch,newDur);
+    notes[noteIndex].isTemp = isTemp;
+    ctx.clear();
+    processStave();
+    processNotes();
+    drawStave();
+    drawNotes();
+    highlightNote();
+}
+
+function validateNote() {
+    notes[noteIndex].isTemp = false;
+    scrollRight();
+}
+
+
+}

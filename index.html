@@ -64,7 +64,8 @@
         <script src="src/stavehairpin.js"></script>
         <script src="src/stavetempo.js"></script>
         <script src="src/tremolo.js"></script>
-        
+        <script src="js/cloud-composer.js"></script>
+
         <!--custom style-->
         <link rel="stylesheet" href="sp://scores4u/css/style.css" />
 
@@ -212,11 +213,13 @@
         </div><!-- /index -->
 
       
-          <div id="tabs" class="section">
+          <div id="writer" class="section">
               
-              <canvas id="scoreCanvas" width="1000px" height="500px"></canvas>
-              <br>
-              <button onclick="init();">init</button>
+              <div style="background-color:#FFFFFF">
+                  
+                  <canvas id="scoreCanvas" height="400" width="800"></canvas>
+              </div>
+              <button onclick="initWriter();">init</button>
               <button onclick="draw();">draw</button>
               <button onclick="scrollLeft();">left</button>
               <button onclick="scrollRight();">right</button>
